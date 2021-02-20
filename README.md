@@ -1,3 +1,3 @@
 # GXU_Spider
-# GXU_Spider
-# GXU_Spider
+简单的爬虫，模拟实现了登录和选课
+目前只测试了选修课可用

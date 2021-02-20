@@ -282,7 +282,7 @@ class Login:
 
 
 
-test = Login(user='1924110237', pwd='123456jk')
+test = Login(user='', pwd='')
 test.get_public()
 test.get_csrftoken()
 test.post_data()
