@@ -1,18 +1,16 @@
 import requests
-from lxml import etree
+
 import time
 from hex2b64 import HB64
 import RSAJS
 import json
-import getpass
-import sys
-import rsa
-import base64
+import os
 import bs4
+from multiprocessing import Pool, Manager
 import re
 
 
-class Login:
+class SpiderOfGxu:
 
     def __init__(self, user, pwd):
 
@@ -23,22 +21,45 @@ class Login:
             "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; 360SE)",
         }
         self.time = int(time.time() * 1000)
-        self.xkkz_id = 'BA1FF77CF45ED1FCE053020410AC6CFA'
-    # def get_time(self):
-    #     return int(time.time()*1000)
+        self.xkkz_id = ''
+        self.courses = Manager().list()
+        self.host = 'http://jwxt2018.gxu.edu.cn'
+        self.selectedCourses = Manager().list()
 
-    def get_public(self):
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xtgl/login_getPublicKey.html'
+    def login(self):
+        hosts = ['http://210.36.22.54', 'http://210.36.22.57', 'http://210.36.22.59', 'http://210.36.22.219',
+                 'http://jwxt2018.gxu.edu.cn', ]
+        for i in range(1, 12):
+            i = str(i)
+            if int(i) < 10:
+                i = '0' + i
+            hosts.append('http://jwgl2018' + i + '.gxu.edu.cn')
+        flag = 0
+        for host in hosts:
+            self.host = host
+            try:
+                self._get_public()
+                self._get_csrftoken()
+                self._post_data()
+                flag = 1
+                break
+            except Exception:
+                print('当前服务器 %s 过载 开始尝试下一个...' % host)
+        if flag == 1:
+            print('登录成功,当前服务器%s' % self.host)
+
+    def _get_public(self):
+        url = self.host + '/jwglxt/xtgl/login_getPublicKey.html'
         r = self.session.get(url)
         self.pub = r.json()
 
-    def get_csrftoken(self):
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xtgl/login_slogin.html'
+    def _get_csrftoken(self):
+        url = self.host + '/jwglxt/xtgl/login_slogin.html'
         r = self.session.get(url)
         htm = bs4.BeautifulSoup(r.text, "html.parser")
         self.csrftoken = htm.select("#csrftoken")[0]["value"]
 
-    def process_public(self, pwd):
+    def _process_public(self, pwd):
         self.exponent = HB64().b642hex(self.pub['exponent'])
         self.modulus = HB64().b642hex(self.pub['modulus'])
         rsa = RSAJS.RSAKey()
@@ -46,9 +67,9 @@ class Login:
         cry_data = rsa.encrypt(pwd)
         return HB64().hex2b64(cry_data)
 
-    def post_data(self):
-        ras_pw = self.process_public(self.pwd)
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xtgl/login_slogin.html'
+    def _post_data(self):
+        ras_pw = self._process_public(self.pwd)
+        url = self.host + '/jwglxt/xtgl/login_slogin.html'
         data = {
             'csrftoken': self.csrftoken,
             'language': "zh_CN",
@@ -57,82 +78,44 @@ class Login:
             'mm': ras_pw,
         }
 
-        # print(en_pwd)
-
         r = self.session.post(url, headers=self.headers, data=data)
-        # print(r.text)
-    def login_zzxk(self):
-        # 获取头部的一些信息
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512&layout=default&su='+self.user
-        r = self.session.post(url, data={
-            'gndm':"N253512"
-        }, headers=self.headers)
-        # {
-        #     "rwlx": "2",
-        #     "xkly": "0",
-        #     "bklx_id": "0",
-        #     "xqh_id": "1",!!!
-        #     "jg_id": "30700",!!!
-        #     "zyh_id": "0731",!!!
-        #     "zyfx_id": "wfx",!!!
-        #     "njdm_id": "2019",!!!
-        #     "bh_id": "19073105",!!!
-        #     "xbm": "1",!!!
-        #     "xslbdm": "421",!!!
-        #     "ccdm": "21",!!!
-        #     "xsbj": "4294967296",!!!
-        #     "sfkknj": "0",
-        #     "sfkkzy": "0",
-        #     "sfznkx": "0",
-        #     "zdkxms": "0",
-        #     "sfkxq": "0",
-        #     "sfkcfx": "0",
-        #     "kkbk": "0",
-        #     "kkbkdj": "0",
-        #     "xkxnm": "2020",!!!
-        #     "xkxqm": "12",!!!
-        #     "rlkz": "0",
-        #     "kklxdm": "05",  05是体育课代码
+        pattern = r'弹出验证码'
+        if re.search(pattern, r.text) is not None:
+            print('登录不成功')
+            raise Exception()
 
-        #     "kch_id": "1411112",
-        #     "xkkz_id": "BA1FF77CF45ED1FCE053020410AC6CFA",
-        #     "cxbj": "0",
-        #     "fxbj": "0"
-        # }
+    def _prepare_userinfo(self, ignore_classtype=False):
+        #
+
+        #
+        form = {}
+
+        url_zzxk = self.host + '/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512&layout=default&su=' + self.user
+        r = self.session.get(url=url_zzxk, headers=self.headers)
+
         htm = bs4.BeautifulSoup(r.text, "html.parser")
-        a = ['xqh_id', 'jg_id_1', 'zyh_id', 'zyfx_id', 'njdm_id', 'bh_id', 'xbm', 'xslbdm', 'ccdm', 'xsbj', 'xkxnm', 'xkxqm', ]
-        
-        dic ={}
+        a = ['xqh_id', 'jg_id_1', 'zyh_id', 'zyfx_id', 'njdm_id', 'bh_id', 'xbm', 'xslbdm', 'ccdm', 'xsbj', 'xkxnm',
+             'xkxqm', ]
+
         for i in a:
             select_i = '#' + i
-            dic[i] = htm.select(select_i)[0]['value']
-        return dic
+            form[i] = htm.select(select_i)[0]['value']
+        pattern = r'queryCourse.......(\d*)...(\w*).*?>(.*?)<\/a>'
+        res = re.findall(pattern, r.text, re.S)
+        print()
 
-    def prepare_form(self):
-        #
-        # 神秘的xkkz_id
-        # 体育课 :"BA1FF77CF45ED1FCE053020410AC6CFA"
-        # 主修课程 xkkz_id:"BA1FAE592422B2B4E053020410ACF2FE"
-        # 通识选修课 xkkz_id:"BADF378C0C89FC5BE053030410AC7C59"
-        # 特殊课程 BA1F4A5AEB009336E053030410ACE26E
-        # 其他特殊课程 BA1D5E1515DA4941E053030410ACA7D9
-        #
-        form = self.login_zzxk() 
+        url = self.host + '/jwglxt/xsxk/zzxkyzb_cxZzxkYzbDisplay.html?gnmkdm=N253512&su=' + self.user
+        if not ignore_classtype:
 
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xsxk/zzxkyzb_cxZzxkYzbDisplay.html?gnmkdm=N253512&su='+self.user
-        query = input('请问需要什么类型的课？1：主修，2：体育，3：校选课')
-        if query == '1':
-            form['kklxdm'] = '01'
-            form['xkkz_id'] = 'BA1FAE592422B2B4E053020410ACF2FE'
-            self.xkkz_id = 'BA1FAE592422B2B4E053020410ACF2FE'
-        elif query == '2':
-            form['kklxdm'] = '05'
-            form['xkkz_id'] = 'BA1FF77CF45ED1FCE053020410AC6CFA'
-            self.xkkz_id = 'BA1FF77CF45ED1FCE053020410AC6CFA'
-        elif query == '3':
-            form['kklxdm'] = '10'
-            form['xkkz_id'] = 'BBA0DCA9E236261BE053020410ACCC5C'
-            self.xkkz_id = 'BBA0DCA9E236261BE053020410ACCC5C'
+            print('目前可选课程为:')
+            for id, item in enumerate(res):
+                print(id, item[2])
+            mode = int(input('请输入要选择课程类别，（填数字，编号从0开始）'))
+            form['xkkz_id'] = res[mode][1]
+            self.xkkz_id = form['xkkz_id']
+            form['kklxdm'] = res[mode][0]
+            print(form)
+
         data = {
             "xkkz_id": self.xkkz_id,
             "xszxzt": "1",
@@ -141,40 +124,8 @@ class Login:
         }
 
         r = self.session.post(url=url, data=data, headers=self.headers)
-        # {
-        #     "rwlx": "2",
-        #     "xkly": "0",
-        #     "bklx_id": "0",
-        #     "xqh_id": "1",!!!
-        #     "jg_id": "30700",!!!
-        #     "zyh_id": "0731",!!!
-        #     "zyfx_id": "wfx",!!!
-        #     "njdm_id": "2019",!!!
-        #     "bh_id": "19073105",!!!
-        #     "xbm": "1",!!!
-        #     "xslbdm": "421",!!!
-        #     "ccdm": "21",!!!
-        #     "xsbj": "4294967296",!!!
-        #     "sfkknj": "0",
-        #     "sfkkzy": "0",
-        #     "sfznkx": "0",
-        #     "zdkxms": "0",
-        #     "sfkxq": "0",
-        #     "sfkcfx": "0",
-        #     "kkbk": "0",
-        #     "kkbkdj": "0",
-        #     "xkxnm": "2020",!!!
-        #     "xkxqm": "12",!!!
-        #     "rlkz": "0",
-        #     "kklxdm": "05",  05是体育课代码
-
-        #     "kch_id": "1411112",
-        #     "xkkz_id": "BA1FF77CF45ED1FCE053020410AC6CFA",
-        #     "cxbj": "0",
-        #     "fxbj": "0"
-        # }
         htm = bs4.BeautifulSoup(r.text, 'html.parser')
-        form.setdefault('rwlx',htm.select('#rwlx')[0]['value'])
+        form.setdefault('rwlx', htm.select('#rwlx')[0]['value'])
         form.setdefault('xkly', htm.select('#xkly')[0]['value'])
         form.setdefault('bklx_id', htm.select('#bklx_id')[0]['value'])
         form.setdefault('sfkknj', htm.select('#sfkknj')[0]['value'])
@@ -193,32 +144,24 @@ class Login:
         form.setdefault('xkzgbj', htm.select('#xkzgbj')[0]['value'])
         form.setdefault('xklc', htm.select('#xklc')[0]['value'])
         self.form = form
-        
+
         return form
-        
-    def get_CourseList(self):
-        
 
-        form = self.prepare_form()
-        
+    def _get_TmpList(self):
+
+        form = self._prepare_userinfo()
+
         form['kspage'] = '1'
-        form['jspage'] = '1000'
+        form['jspage'] = '2000'
         form['jxbzb'] = ''
-        course_url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512&su=' + self.user
+        course_url = self.host + '/jwglxt/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512&su=' + self.user
         course_list = self.session.post(course_url, data=form)
-        # print(form)
-        # print(course_list.json())
-        # fp = open('tmp.json', 'w',encoding='utf-8')
-        # fp.write(course_list.text)
-        # fp.close()
-
         return json.loads(course_list.text)['tmpList']
 
+    def _get_target_info(self):
+        # 这里相当于模拟展开选课的状态栏
 
-
-
-    def get_target_info(self):
-        tmp_list = self.get_CourseList()
+        tmp_list = self._get_TmpList()
         print('获取到如下课程')
         course_dic = {}
         for item in tmp_list:
@@ -230,64 +173,130 @@ class Login:
         # for k,v in course_dic.items():
         #     print(k, '教学班数量'+str(v))
 
-
         names = []
         course_info = []
         for item in tmp_list:
-            # if item['kcmc'] == target_course_name:
-            #     return {
-            #         'kch_id': item['kch_id'],
-            #         'cxbj': item['cxbj'],
-            #         'fxbj':item['fxbj']
-            #     }
-            if int(item['yxzrs']) <= 100:
+            if item['kcmc'] not in names:
                 course_info.append({
-                        'kch_id': item['kch_id'],
-                        'cxbj': item['cxbj'],
-                        'fxbj': item['fxbj']
+                    'kch_id': item['kch_id'],
+                    'cxbj': item['cxbj'],
+                    'fxbj': item['fxbj']
                 })
                 names.append(item['kcmc'])
         return course_info, names
-        
 
     def run(self):
-        url = 'http://jwxt2018.gxu.edu.cn/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512&su=' + self.user
-        url_xuanke = 'http://jwxt2018.gxu.edu.cn/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' +self.user
-        cnt = 0
+        url = self.host + '/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512&su=' + self.user
+        url_xuanke = self.host + '/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' + self.user
 
-        course_info, names = self.get_target_info()
-        while True:
-            for id, item_info in enumerate(course_info):
-                flag = 1
-                form = {**item_info, **self.form}
-                print('正在尝试选 ' + names[id] + ' ...')
-                course = self.session.post(url=url, data=form, headers=self.headers)
-                course = json.loads(course.text)
-                if course[0]['kcxzmc'] not in['海洋课','东盟课','民族课']:
-                    print('不是东盟或者海洋课')
-                    continue
-                form['qz'] = '0'
+        course_info, names = self._get_target_info()
+        # print(course_info)
+        print(names)
+        pool = Pool(processes=30)  # 30个进程
 
-                for item in course:
-                    form['jxb_ids'] = item['do_jxb_id']
-                    r = self.session.post(url=url_xuanke, data=form, headers=self.headers)
-                    print(r.text)
-                    if r.text.find('msg')==-1:
-                        cnt += 1
-                        print('成功选上%d门 ，是否继续？' %(cnt))
-                        mode = input('1:继续,2:取消')
-                        if mode == '2':
-                            exit(0)
+        for id, item_info in enumerate(course_info):
+            form = {**item_info, **self.form}
+            form['qz'] = '0'  # 不懂是什么key
+            pool.apply_async(self._unfold_courseList,
+                             args=(url, form, names[id], item_info['kch_id'],))  # 这里的course就是点击展开的课程，一个课程里面有许多个班
+
+        pool.close()
+        pool.join()
+
+        # print(self.courses) [
+        #   {'jxb_id':...,'xingzhi':...,'course_name':...},
+        #   {...}
+        # ]
+        # print(self.courses)
+        while len(self.selectedCourses) < 1: # 还没选上课
+            pool2 = Pool(processes=3)
+            for item in self.courses:
+                if item['xingzhi'] in TARGET or :
+                    form = {**self.form, **item}
+                    form['qz'] = '0'
+                    pool2.apply_async(self._click_xuanke, (url_xuanke, form, item['course_name'],))
+            pool2.close()
+            pool2.join()
+        print('选课成功')
+
+    def _click_xuanke(self, url_xuanke, form, name):
+        try:
+            if len(self.selectedCourses) < 1:
+                print('正在选择 %s ...' % name)
+
+                r = self.session.post(url=url_xuanke, data=form, headers=self.headers)
+                print(r.text)
+                if r.text.find('msg') == -1:
+                    self.selectedCourses.append(name)
+
+        except Exception:
+            pass
+
+    def _unfold_courseList(self, url, form, name, kch):
+
+        # print('当前线程' + str(os.getpid()) + '展开 ' + name + ' ...')
+        course = self.session.post(url=url, data=form, headers=self.headers)
+        course = json.loads(course.text)
+        # print(course)
+        for item in course:
+            tmp = {
+                'jxb_ids': item['do_jxb_id'],
+                'course_name': name,
+                'xingzhi': item['kcxzmc'],
+                'kch_id': kch  # 这个只有在tmpList里面有但是选课又需要，同一类课程这个是一样的
+            }
+
+            self.courses.append(tmp)
+
+    def display_selected(self):
+        url = self.host + '/jwglxt/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512&su=' + self.user
+        r = self.session.post(url=url, data=self._prepare_userinfo(ignore_classtype=True), headers=self.headers)
+        selected_list = json.loads(r.text)
+        print()
+        for item in selected_list:
+            print('课程号', item['kch'])
+            print('教学班id', item['jxb_id'])
+            print('名称 ', item['jxbmc'])
+            print('老师 ', item['jsxx'])
+            print()
+        print('共计 %d 门' % len(selected_list))
+        mode = input('是否要退课,按1确认 按0 取消')
+        if mode == '1':
+            kch = input('请输入退课的课程号')
+            id = input('教学班id')
+            self._tuike(id, kch)
+
+    def _tuike(self, jxb_id, kch_id):
+        tuike_url = self.host + '/jwglxt/xsxk/tjxkyzb_tuikBcTjxkYzb.html?gnmkdm=N253511&su=' + self.user
+
+        # form = {
+        #     'jxb_ids':'BAD25334D3631503E053030410AC8FA5',
+        #     'kch_id':'1435543',
+        #     'xkkz_id':self.xkkz_id,
+        #     'qz':'0',
+        # }
+        form = {
+            'jxb_ids': jxb_id,
+            'kch_id': kch_id,
+            'xkkz_id': self.xkkz_id,
+            'qz': 0
+        }
+        form = {**form, **self.form}
+        r = self.session.post(url=tuike_url, data=form, headers=self.headers)
+        if r.text == "1":
+            print('退课成功！')
 
 
+if __name__ == '__main__':
+    global TARGET
+    TARGET = ['东盟课', '海洋课', '民族课'] # 只会选择有这些性质的课程
 
+    test = SpiderOfGxu(user='1907310524', pwd='qwe123')
+    test.login()
 
-test = Login(user='', pwd='')
-test.get_public()
-test.get_csrftoken()
-test.post_data()
-
-while True:
-    op = input('操作?').strip()
-    if op == '1':
-        test.run()
+    while True:
+        op = input('操作1:选课,\n操作2:显示已选课程')
+        if op == '1':
+            test.run()
+        elif op == '2':
+            test.display_selected()
