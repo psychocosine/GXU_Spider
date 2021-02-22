@@ -291,7 +291,7 @@ if __name__ == '__main__':
     global TARGET
     TARGET = ['东盟课', '海洋课', '民族课'] # 只会选择有这些性质的课程
 
-    test = SpiderOfGxu(user='1907310524', pwd='qwe123')
+    test = SpiderOfGxu(user='', pwd='')
     test.login()
 
     while True:
