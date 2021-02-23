@@ -1,17 +1,18 @@
 # GXU_Spider
 
->多线程暴力脚本，大大增加选课成功率
+>多进程无脑爆杀流脚本
 
 ## 使用脚本你可以做到
+:heavy_check_mark: 多服务器尝试登录\
 :heavy_check_mark: 无人值守自动抢课\
-:heavy_check_mark: 并发抢课提升成功率\
-:heavy_check_mark: 卡时间准时抢课
+:heavy_check_mark: 并发抢课提升成功率
+
+
 
 
 ## 说明
 
 ### 环境安装
-
 ```python
 pip install -r requirements.txt
 ```
