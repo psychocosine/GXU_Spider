@@ -167,7 +167,7 @@ class SpiderOfGxu:
     def _get_target_info(self):
 
         tmp_list = self._get_TmpList()
-        print('获取到如下课程')
+        # print('获取到如下课程')
         course_dic = {}
         for item in tmp_list:
             name = item['kcmc']
@@ -193,13 +193,13 @@ class SpiderOfGxu:
     def run(self):
         url = self.host + '/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512&su=' + self.user
         url_xuanke = self.host + '/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' + self.user
-
+        self.current_selected = len(self.selectedCourses)
         course_info, names = self._get_target_info()
-        print(course_info)
-        print(names)
-        f = open('选修课.txt','w',encoding='utf-8')
-        f.write(','.join(names))
-        f.close()
+        # print(course_info)
+        # print(names)
+        # f = open('选修课.txt','w',encoding='utf-8')
+        # f.write(','.join(names))
+        # f.close()
         pool = Pool(processes=30)  # 30个进程
 
         for id, item_info in enumerate(course_info):
@@ -211,7 +211,7 @@ class SpiderOfGxu:
         pool.close()
         pool.join()
 
-        while len(self.selectedCourses) < 1:  # 还没选上课
+        while len(self.selectedCourses) <= self.current_selected:  # 还没选上课
             pool2 = Pool(processes=3)
             for item in self.courses:
                 isTarget = (item['course_name'] in XUANXIUKE_TARGET) or (item['xingzhi'] in PE_TARGET) or item[
@@ -226,17 +226,14 @@ class SpiderOfGxu:
         print('选课成功，已选%d门' % len(self.selectedCourses))
 
     def _click_xuanke(self, url_xuanke, form, name):
-        try:
-            if len(self.selectedCourses) < 1:
-                print('正在选择 %s ...' % name)
+        if len(self.selectedCourses) <= self.current_selected:
+            print('正在选择 %s ...' % name)
 
-                r = self.session.post(url=url_xuanke, data=form, headers=self.headers)
-                print(r.text)
-                if r.text.find('msg') == -1:
-                    self.selectedCourses.append(name)
+            r = self.session.post(url=url_xuanke, data=form, headers=self.headers)
+            print(r.text)
+            if r.text.find('msg') == -1:
+                self.selectedCourses.append(name)
 
-        except Exception:
-            pass
 
     def _unfold_courseList(self, url, form, name, kch):
 
