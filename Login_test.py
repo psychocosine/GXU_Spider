@@ -85,7 +85,7 @@ class SpiderOfGxu:
         }
 
         r = self.session.post(url, headers=self.headers, data=data)
-        pattern = r'弹出验证码'
+        pattern = r'用户名或密码不正确'
         if re.search(pattern, r.text) is not None:
             print('登录不成功')
             raise Exception()
