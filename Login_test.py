@@ -159,7 +159,7 @@ class SpiderOfGxu:
         return json.loads(course_list.text)['tmpList']
 
     def _get_target_info(self):
-        # 这里相当于模拟展开选课的状态栏
+
 
         tmp_list = self._get_TmpList()
         print('获取到如下课程')
@@ -203,21 +203,19 @@ class SpiderOfGxu:
         pool.close()
         pool.join()
 
-        # print(self.courses) [
-        #   {'jxb_id':...,'xingzhi':...,'course_name':...},
-        #   {...}
-        # ]
-        # print(self.courses)
-        while len(self.selectedCourses) < 1: # 还没选上课
+        while len(self.selectedCourses) < 1:  # 还没选上课
             pool2 = Pool(processes=3)
             for item in self.courses:
-                if item['xingzhi'] in TARGET or :
+                isTarget = (item['name'] in XUANXIUKE_TARGET) or (item['xingzhi'] in PE_TARGET) or item[
+                    'xingzhi'] in BIXIU_TARGET
+                if isTarget:
                     form = {**self.form, **item}
                     form['qz'] = '0'
                     pool2.apply_async(self._click_xuanke, (url_xuanke, form, item['course_name'],))
             pool2.close()
             pool2.join()
-        print('选课成功')
+
+        print('选课成功，已选%d门'% len(self.selectedCourses))
 
     def _click_xuanke(self, url_xuanke, form, name):
         try:
@@ -243,7 +241,7 @@ class SpiderOfGxu:
                 'jxb_ids': item['do_jxb_id'],
                 'course_name': name,
                 'xingzhi': item['kcxzmc'],
-                'kch_id': kch  # 这个只有在tmpList里面有但是选课又需要，同一类课程这个是一样的
+                'kch_id': kch  # 这个只有在tmpList里面有但是选课又需要所以传递回去，同一类课程这个是一样的
             }
 
             self.courses.append(tmp)
@@ -288,8 +286,13 @@ class SpiderOfGxu:
 
 
 if __name__ == '__main__':
-    global TARGET
-    TARGET = ['东盟课', '海洋课', '民族课'] # 只会选择有这些性质的课程
+    global XUANXIUKE_TARGET  # 选修课
+    global PE_TARGET  # 体育课
+    global BIXIU_TARGET  # 必修课
+
+    XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化',]  # 只会选择有这些名称的课程
+    PE_TARGET = ['游泳']
+    BIXIU_TARGET = ['数据库原理','计算机网络原理','	算法设计与分析（全英）']
 
     test = SpiderOfGxu(user='', pwd='')
     test.login()
