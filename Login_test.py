@@ -10,11 +10,17 @@ from multiprocessing import Pool, Manager
 import re
 
 
+class Session(requests.Session):
+    def request(self, *args, **kwargs):
+        kwargs.setdefault('timeout', 4)
+        return super(Session, self).request(*args, **kwargs)
+
+
 class SpiderOfGxu:
 
     def __init__(self, user, pwd):
 
-        self.session = requests.session()
+        self.session = Session()
         self.user = user
         self.pwd = pwd
         self.headers = {
@@ -160,7 +166,6 @@ class SpiderOfGxu:
 
     def _get_target_info(self):
 
-
         tmp_list = self._get_TmpList()
         print('获取到如下课程')
         course_dic = {}
@@ -190,8 +195,11 @@ class SpiderOfGxu:
         url_xuanke = self.host + '/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' + self.user
 
         course_info, names = self._get_target_info()
-        # print(course_info)
+        print(course_info)
         print(names)
+        f = open('选修课.txt','w',encoding='utf-8')
+        f.write(','.join(names))
+        f.close()
         pool = Pool(processes=30)  # 30个进程
 
         for id, item_info in enumerate(course_info):
@@ -215,7 +223,7 @@ class SpiderOfGxu:
             pool2.close()
             pool2.join()
 
-        print('选课成功，已选%d门'% len(self.selectedCourses))
+        print('选课成功，已选%d门' % len(self.selectedCourses))
 
     def _click_xuanke(self, url_xuanke, form, name):
         try:
@@ -290,9 +298,9 @@ if __name__ == '__main__':
     global PE_TARGET  # 体育课
     global BIXIU_TARGET  # 必修课
 
-    XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化',]  # 只会选择有这些名称的课程
+    XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化', ]  # 只会选择有这些名称的课程
     PE_TARGET = ['游泳']
-    BIXIU_TARGET = ['数据库原理','计算机网络原理','	算法设计与分析（全英）']
+    BIXIU_TARGET = ['数据库原理', '计算机网络原理', '算法设计与分析（全英）']
 
     test = SpiderOfGxu(user='', pwd='')
     test.login()
