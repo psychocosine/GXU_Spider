@@ -206,7 +206,7 @@ class SpiderOfGxu:
         while len(self.selectedCourses) < 1:  # 还没选上课
             pool2 = Pool(processes=3)
             for item in self.courses:
-                isTarget = (item['name'] in XUANXIUKE_TARGET) or (item['xingzhi'] in PE_TARGET) or item[
+                isTarget = (item['course_name'] in XUANXIUKE_TARGET) or (item['xingzhi'] in PE_TARGET) or item[
                     'xingzhi'] in BIXIU_TARGET
                 if isTarget:
                     form = {**self.form, **item}
