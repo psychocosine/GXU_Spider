@@ -24,5 +24,7 @@ BIXIU_TARGET = ['数据库原理','计算机网络原理','	算法设计与分�
 test = SpiderOfGxu(user='1907316666', pwd='password123') #在此处填写用户名和密码 然后运行
 
 ```
+## 示例
 
+![](./img/test1.png)
 
