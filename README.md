@@ -16,7 +16,7 @@
 ```python
 pip install -r requirements.txt
 ```
-进入Login_test 填写相应字段
+进入main.py 填写相应字段
 ```python
 XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化',] # 支持模糊，和教务系统上面那个搜索框用法基本一致
 PE_TARGET = ['游泳']
