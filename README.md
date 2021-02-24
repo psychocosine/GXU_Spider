@@ -16,7 +16,7 @@
 ```python
 pip install -r requirements.txt
 ```
-进入Login_test 填写相应字段
+进入main.py 填写相应字段
 ```python
 XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化',]  # 只会选择有这些名称的课程
 PE_TARGET = ['游泳']
