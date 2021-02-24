@@ -32,6 +32,8 @@ class SpiderOfGxu:
         self.host = 'http://jwxt2018.gxu.edu.cn'
         self.selectedCourses = Manager().list()
 
+
+
     def login(self):
         hosts = ['http://210.36.22.54', 'http://210.36.22.57', 'http://210.36.22.59', 'http://210.36.22.219',
                  'http://jwxt2018.gxu.edu.cn', ]
@@ -106,6 +108,7 @@ class SpiderOfGxu:
         for i in a:
             select_i = '#' + i
             form[i] = htm.select(select_i)[0]['value']
+
         pattern = r'queryCourse.......(\d*)...(\w*).*?>(.*?)<\/a>'
         res = re.findall(pattern, r.text, re.S)
         print()
@@ -120,6 +123,7 @@ class SpiderOfGxu:
             form['xkkz_id'] = res[mode][1]
             self.xkkz_id = form['xkkz_id']
             form['kklxdm'] = res[mode][0]
+            self.mode = res[mode][2]
             print(form)
 
         data = {
@@ -149,13 +153,28 @@ class SpiderOfGxu:
         form.setdefault('tykczgxdcs', htm.select('#tykczgxdcs')[0]['value'])
         form.setdefault('xkzgbj', htm.select('#xkzgbj')[0]['value'])
         form.setdefault('xklc', htm.select('#xklc')[0]['value'])
+
         self.form = form
 
         return form
 
+    def _filter(self, names, form):
+        for id, item in enumerate(names):
+            key = 'filter_list[' + str(id) + ']'
+            form.setdefault(key, item)
+
     def _get_TmpList(self):
 
         form = self._prepare_userinfo()
+        if self.mode == '主修课程':
+            names = BIXIU_TARGET
+        elif self.mode == '通识选修课':
+            names = XUANXIUKE_TARGET
+        elif self.mode == '体育分项':
+            names = PE_TARGET
+        else:
+            raise Exception()
+        self._filter(names, form)
 
         form['kspage'] = '1'
         form['jspage'] = '2000'
@@ -164,7 +183,7 @@ class SpiderOfGxu:
         course_list = self.session.post(course_url, data=form)
         return json.loads(course_list.text)['tmpList']
 
-    def _get_target_info(self):
+    def _process_tmplist(self):
 
         tmp_list = self._get_TmpList()
         # print('获取到如下课程')
@@ -190,17 +209,14 @@ class SpiderOfGxu:
                 names.append(item['kcmc'])
         return course_info, names
 
-    def run(self):
+    def run(self, single_mode=True):
         url = self.host + '/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512&su=' + self.user
         url_xuanke = self.host + '/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' + self.user
         self.current_selected = len(self.selectedCourses)
-        course_info, names = self._get_target_info()
+        course_info, names = self._process_tmplist()
         # print(course_info)
-        # print(names)
-        # f = open('选修课.txt','w',encoding='utf-8')
-        # f.write(','.join(names))
-        # f.close()
-        pool = Pool(processes=30)  # 30个进程
+        print(names)
+        pool = Pool(processes=4)  # 4个进程
 
         for id, item_info in enumerate(course_info):
             form = {**item_info, **self.form}
@@ -211,19 +227,17 @@ class SpiderOfGxu:
         pool.close()
         pool.join()
 
-        while len(self.selectedCourses) <= self.current_selected:  # 还没选上课
-            pool2 = Pool(processes=3)
-            for item in self.courses:
-                isTarget = (item['course_name'] in XUANXIUKE_TARGET) or (item['xingzhi'] in PE_TARGET) or item[
-                    'xingzhi'] in BIXIU_TARGET
-                if isTarget:
+        if len(names) > 0:
+            while len(self.selectedCourses) <= self.current_selected:  # 还没选上课
+                pool2 = Pool(processes=3)
+                for item in self.courses:
                     form = {**self.form, **item}
                     form['qz'] = '0'
                     pool2.apply_async(self._click_xuanke, (url_xuanke, form, item['course_name'],))
-            pool2.close()
-            pool2.join()
+                pool2.close()
+                pool2.join()
 
-        print('选课成功，已选%d门' % len(self.selectedCourses))
+            print('选课成功，已选%d门' % len(self.selectedCourses))
 
     def _click_xuanke(self, url_xuanke, form, name):
         if len(self.selectedCourses) <= self.current_selected:
@@ -233,7 +247,6 @@ class SpiderOfGxu:
             print(r.text)
             if r.text.find('msg') == -1:
                 self.selectedCourses.append(name)
-
 
     def _unfold_courseList(self, url, form, name, kch):
 
@@ -295,9 +308,10 @@ if __name__ == '__main__':
     global PE_TARGET  # 体育课
     global BIXIU_TARGET  # 必修课
 
-    XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化', ]  # 只会选择有这些名称的课程
-    PE_TARGET = ['游泳']
-    BIXIU_TARGET = ['数据库原理', '计算机网络原理', '算法设计与分析（全英）']
+    XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化', ]  # 只会选择有这些名称的课程,你不填就每个都尝试一遍，和教务系统本身的搜索
+    PE_TARGET = ['排球','篮球']                                               # 基本一致，区别是我这里划分的更细，不会带着体育课的名称在主修课里面找，
+    BIXIU_TARGET = ['数据库原理', '计算机网络原理', '算法设计与分析']    # 而教务系统会
+
 
     test = SpiderOfGxu(user='', pwd='')
     test.login()
