@@ -8,6 +8,7 @@ import os
 import bs4
 from multiprocessing import Pool, Manager
 import re
+import exceptions
 
 
 class Session(requests.Session):
@@ -51,8 +52,10 @@ class SpiderOfGxu:
                 self._post_data()
                 flag = 1
                 break
-            except Exception:
+            except requests.exceptions.RequestException as e:
                 print('当前服务器 %s 过载 开始尝试下一个...' % host)
+            except exceptions.LoginException as e:
+                pass
         if flag == 1:
             print('登录成功,当前服务器%s' % self.host)
 
@@ -89,8 +92,7 @@ class SpiderOfGxu:
         r = self.session.post(url, headers=self.headers, data=data)
         pattern = r'用户名或密码不正确'
         if re.search(pattern, r.text) is not None:
-            print('登录不成功')
-            raise Exception()
+            raise exceptions.LoginException()
 
     def _prepare_userinfo(self, ignore_classtype=False):
         #
@@ -309,11 +311,11 @@ if __name__ == '__main__':
     global BIXIU_TARGET  # 必修课
 
     XUANXIUKE_TARGET = ['走进东盟', '东南亚风情', '东南亚戏剧文化', ]  # 只会选择有这些名称的课程,你不填就每个都尝试一遍，和教务系统本身的搜索
-    PE_TARGET = ['排球','篮球']                                               # 基本一致，区别是我这里划分的更细，不会带着体育课的名称在主修课里面找，
+    PE_TARGET = ['排球','篮球','游泳']                                               # 基本一致，区别是我这里划分的更细，不会带着体育课的名称在主修课里面找，
     BIXIU_TARGET = ['数据库原理', '计算机网络原理', '算法设计与分析']    # 而教务系统会
 
 
-    test = SpiderOfGxu(user='', pwd='')
+    test = SpiderOfGxu(user='1907310524', pwd='qwe123')
     test.login()
 
     while True:
