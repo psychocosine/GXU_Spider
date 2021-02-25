@@ -315,7 +315,7 @@ if __name__ == '__main__':
     BIXIU_TARGET = ['数据库原理', '计算机网络原理', '算法设计与分析']    # 而教务系统会
 
 
-    test = SpiderOfGxu(user='1907310524', pwd='qwe123')
+    test = SpiderOfGxu(user='', pwd='')
     test.login()
 
     while True:
